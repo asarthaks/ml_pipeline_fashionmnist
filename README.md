@@ -1,1 +1,1 @@
-# ml_pipeline_fashionmnist
+Fashion MNIST Classification and Its ML Pipeline using Apache Kafka
