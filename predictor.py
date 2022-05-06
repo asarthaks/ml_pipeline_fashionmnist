@@ -8,19 +8,16 @@ from pathlib import Path
 from kafka import KafkaConsumer
 from utils.messages_utils import append_message, read_messages_count, send_retrain_message, publish_prediction
 from tensorflow.keras.models import load_model
-import base64
-
 KAFKA_HOST = 'localhost:9092'
 TOPICS = ['app_messages', 'retrain_topic']
 PATH = Path('data/')
 MODELS_PATH = PATH/'models'
 DATAPROCESSORS_PATH = PATH/'dataprocessors'
 MESSAGES_PATH = PATH/'messages'
-RETRAIN_EVERY = 25
+RETRAIN_EVERY = 100
 EXTRA_MODELS_TO_KEEP = 1
 
 from initialize import IMAGE_SHAPE, IMAGE_COLS, IMAGE_ROWS, CLASS_LABELS
-
 dataprocessor = None
 consumer = None
 model = None
@@ -59,7 +56,6 @@ def start(model_id, messages_count, batch_id):
 	print('Consumer created, subscribing to topics : {}'.format(TOPICS))
 	consumer.subscribe(TOPICS)
 	print('Subscribed')
-	print(consumer.assignment(), consumer.subscription())
 	for msg in consumer:
 		message = json.loads(msg.value)
 
@@ -92,8 +88,5 @@ if __name__ == '__main__':
 	model_id = batch_id % (EXTRA_MODELS_TO_KEEP + 1)
 	model_fname = 'model_{}_.h5'.format(model_id)
 	model = reload_model(MODELS_PATH/model_fname)
-
-	# consumer = KafkaConsumer(bootstrap_servers=KAFKA_HOST)
-	# consumer.subscribe(TOPICS)
 
 	start(model_id, messages_count, batch_id)

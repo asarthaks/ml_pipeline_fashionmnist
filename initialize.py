@@ -20,10 +20,17 @@ IMAGE_ROWS = 28
 IMAGE_COLS = 28
 BATCH_SIZE = 4096
 IMAGE_SHAPE = (IMAGE_ROWS, IMAGE_COLS, 1) 
-TRAIN_EPOCHS = 25
+TRAIN_EPOCHS = 50
 
 CLASS_LABELS = ['T_shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 
                'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+
+USE_GPU = False
+if USE_GPU :
+	## Using tensorflow gpu
+	import tensorflow as tf
+	physical_devices = tf.config.list_physical_devices('GPU')
+	tf.config.experimental.set_memory_growth(physical_devices[0], enable=True)
 
 def create_folders():
 	print("creating directory structure...")

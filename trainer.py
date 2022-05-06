@@ -16,6 +16,7 @@ from train.train_cnn_model import CNNModel
 KAFKA_HOST = 'localhost:9092'
 RETRAIN_TOPIC = 'retrain_topic'
 PATH = Path('data/')
+DATA_PATH = '{}/fashion'.format(PATH)
 TRAIN_DATA = PATH/'train/train.csv'
 DATAPROCESSORS_PATH = PATH/'dataprocessors'
 MODELS_PATH = PATH/'models'
@@ -24,7 +25,10 @@ MESSAGES_PATH = PATH/'messages'
 
 def train(model_id, messages, hyper):
 	print("RETRAINING STARTED (model id: {})".format(model_id))
-	dtrain = build_train(TRAIN_DATA, DATAPROCESSORS_PATH, model_id, messages)
+	path_dict = dict()
+	path_dict['images'] = '{}/train-images-idx3-ubyte.gz'.format(DATA_PATH)
+	path_dict['labels'] = '{}/train-labels-idx1-ubyte.gz'.format(DATA_PATH)
+	dtrain = build_train(path_dict, DATAPROCESSORS_PATH, IMAGE_SHAPE, model_id, messages)
 	cnn_model = CNNModel(dtrain, MODELS_PATH, IMAGE_SHAPE, BATCH_SIZE, TRAIN_EPOCHS)
 	cnn_model.fit()
 	print("RETRAINING COMPLETED (model id: {})".format(model_id))
@@ -32,14 +36,13 @@ def train(model_id, messages, hyper):
 
 def start(hyper):
 	consumer = KafkaConsumer(RETRAIN_TOPIC, bootstrap_servers=KAFKA_HOST)
-
 	for msg in consumer:
 		message = json.loads(msg.value)
 		if 'retrain' in message and message['retrain']:
 			model_id = message['model_id']
 			batch_id = message['batch_id']
 			message_fname = 'messages_{}_.txt'.format(batch_id)
-			messages = MESSAGES_PATH/message_fname
+			messages = '{}/{}'.format(MESSAGES_PATH, message_fname)
 
 			train(model_id, messages, hyper)
 			publish_traininig_completed(model_id)

@@ -12,11 +12,6 @@ from utils.feature_tools import FeatureTools
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import train_test_split
 
-## Using tensorflow gpu
-import tensorflow as tf
-physical_devices = tf.config.list_physical_devices('GPU')
-tf.config.experimental.set_memory_growth(physical_devices[0], enable=True)
-
 
 warnings.filterwarnings("ignore")
 
@@ -50,9 +45,12 @@ def build_train(train_path_dict, results_path, IMAGE_SHAPE, dataprocessor_id=0, 
 	X_train, y_train = load_data(train_path_dict)
 	if PATH_2:
 		df_tmp = load_new_training_data(PATH_2)
-		X_train = np.append(X_train, df_tmp.image)
-		y_train = np.append(y_train, df_tmp.label)
-	
+		list_of_images = list()
+		for item in df_tmp.image :
+			list_of_images.append(np.array(item))
+		list_of_images = np.array(list_of_images)
+		X_train = np.concatenate((X_train, list_of_images), axis=0)
+		y_train = np.append(y_train, np.array(df_tmp.label))
 	X_train, X_validate, y_train, y_validate = train_test_split(X_train,y_train,test_size = 0.2,random_state = 12345)
 	X_train = X_train.reshape(X_train.shape[0],*IMAGE_SHAPE)
 	X_validate = X_validate.reshape(X_validate.shape[0],*IMAGE_SHAPE)
