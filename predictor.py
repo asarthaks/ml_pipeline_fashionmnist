@@ -2,10 +2,13 @@ import pdb
 import json
 import pandas as pd
 import pickle
+import numpy as np
 
 from pathlib import Path
 from kafka import KafkaConsumer
 from utils.messages_utils import append_message, read_messages_count, send_retrain_message, publish_prediction
+from tensorflow.keras.models import load_model
+import base64
 
 KAFKA_HOST = 'localhost:9092'
 TOPICS = ['app_messages', 'retrain_topic']
@@ -16,14 +19,17 @@ MESSAGES_PATH = PATH/'messages'
 RETRAIN_EVERY = 25
 EXTRA_MODELS_TO_KEEP = 1
 
-column_order = pickle.load(open(DATAPROCESSORS_PATH/'column_order.p', 'rb'))
+from initialize import IMAGE_SHAPE, IMAGE_COLS, IMAGE_ROWS
+
+# column_order = pickle.load(open(DATAPROCESSORS_PATH/'column_order.p', 'rb'))
 dataprocessor = None
 consumer = None
 model = None
 
 
 def reload_model(path):
-	return pickle.load(open(path, 'rb'))
+	print('reloading model..')
+	return load_model(path)
 
 
 def is_retraining_message(msg):
@@ -36,32 +42,39 @@ def is_application_message(msg):
 	return msg.topic == 'app_messages' and 'prediction' not in message
 
 
-def predict(message, column_order):
-	row = pd.DataFrame(message, index=[0])
+def predict(message, IMAGE_SHAPE):
+	image_data = np.array(message['data']['image'])
+	# row = pd.DataFrame(message, index=[0])
 	# sanity check
-	assert row.columns.tolist()[:-1] == column_order
+	assert image_data.shape == (IMAGE_COLS*IMAGE_ROWS,)
 	# In the real world we would not have the target (here 'income_bracket').
 	# In this example we keep it and we will retrain the model as it reads
 	# RETRAIN_EVERY number of messages. In the real world, after RETRAIN_EVERY
 	# number of messages have been collected, one would have to wait until we
 	# can collect RETRAIN_EVERY targets AND THEN retrain
-	row.drop('income_bracket', axis=1, inplace=True)
-	trow = dataprocessor.transform(row)
+	# row.drop('income_bracket', axis=1, inplace=True)
+	# trow = dataprocessor.transform(row)
+	trow = image_data.reshape(*IMAGE_SHAPE)
 	return model.predict(trow)[0]
 
 
 def start(model_id, messages_count, batch_id):
+	print('here')
+	consumer = KafkaConsumer(bootstrap_servers=KAFKA_HOST, auto_offset_reset='earliest', group_id=None)
+	consumer.subscribe(TOPICS)
+	print(consumer)
 	for msg in consumer:
+		print(msg)
 		message = json.loads(msg.value)
 
 		if is_retraining_message(msg):
-			model_fname = 'model_{}_.p'.format(model_id)
+			model_fname = 'model_{}_.h5'.format(model_id)
 			model = reload_model(MODELS_PATH/model_fname)
 			print("NEW MODEL RELOADED {}".format(model_id))
 
 		elif is_application_message(msg):
 			request_id = message['request_id']
-			pred = predict(message['data'], column_order)
+			pred = predict(message['data'], IMAGE_SHAPE)
 			publish_prediction(pred, request_id)
 
 			append_message(message['data'], MESSAGES_PATH, batch_id)
@@ -81,10 +94,10 @@ if __name__ == '__main__':
 	batch_id = messages_count % RETRAIN_EVERY
 
 	model_id = batch_id % (EXTRA_MODELS_TO_KEEP + 1)
-	model_fname = 'model_{}_.p'.format(model_id)
+	model_fname = 'model_{}_.h5'.format(model_id)
 	model = reload_model(MODELS_PATH/model_fname)
 
-	consumer = KafkaConsumer(bootstrap_servers=KAFKA_HOST)
-	consumer.subscribe(TOPICS)
+	# consumer = KafkaConsumer(bootstrap_servers=KAFKA_HOST)
+	# consumer.subscribe(TOPICS)
 
 	start(model_id, messages_count, batch_id)
