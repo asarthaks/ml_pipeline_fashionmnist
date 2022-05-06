@@ -10,7 +10,7 @@ import pdb
 from pathlib import Path
 from utils.preprocess_data import build_train
 
-from utils.model import get_cnn_model, IMAGE_SHAPE, BATCH_SIZE
+from train.train_cnn_model import CNNModel
 
 
 PATH = Path('data/')
@@ -19,7 +19,11 @@ DATAPROCESSORS_PATH = PATH/'dataprocessors'
 MODELS_PATH = PATH/'models'
 MESSAGES_PATH = PATH/'messages'
 
-
+IMAGE_ROWS = 28
+IMAGE_COLS = 28
+BATCH_SIZE = 4096
+IMAGE_SHAPE = (IMAGE_ROWS, IMAGE_COLS, 1) 
+TRAIN_EPOCHS = 25
 
 def create_folders():
 	print("creating directory structure...")
@@ -30,27 +34,27 @@ def create_folders():
 	(MESSAGES_PATH).mkdir(exist_ok=True)
 
 
-def download_data():
-	train_path = PATH/'adult.data'
-	test_path = PATH/'adult.test'
+# def download_data():
+# 	train_path = PATH/'adult.data'
+# 	test_path = PATH/'adult.test'
 
-	COLUMNS = ["age", "workclass", "fnlwgt", "education", "education_num",
-	           "marital_status", "occupation", "relationship", "race", "gender",
-	           "capital_gain", "capital_loss", "hours_per_week", "native_country",
-	           "income_bracket"]
+# 	COLUMNS = ["age", "workclass", "fnlwgt", "education", "education_num",
+# 	           "marital_status", "occupation", "relationship", "race", "gender",
+# 	           "capital_gain", "capital_loss", "hours_per_week", "native_country",
+# 	           "income_bracket"]
 
-	print("downloading training data...")
-	df_train = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data",
-	    names=COLUMNS, skipinitialspace=True, index_col=0)
-	df_train.drop("education_num", axis=1, inplace=True)
-	df_train.to_csv(train_path)
-	df_train.to_csv(PATH/'train/train.csv')
+# 	print("downloading training data...")
+# 	df_train = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data",
+# 	    names=COLUMNS, skipinitialspace=True, index_col=0)
+# 	df_train.drop("education_num", axis=1, inplace=True)
+# 	df_train.to_csv(train_path)
+# 	df_train.to_csv(PATH/'train/train.csv')
 
-	print("downloading testing data...")
-	df_test = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.test",
-	    names=COLUMNS, skipinitialspace=True, skiprows=1, index_col=0)
-	df_test.drop("education_num", axis=1, inplace=True)
-	df_test.to_csv(test_path)
+# 	print("downloading testing data...")
+# 	df_test = pd.read_csv("https://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.test",
+# 	    names=COLUMNS, skipinitialspace=True, skiprows=1, index_col=0)
+# 	df_test.drop("education_num", axis=1, inplace=True)
+# 	df_test.to_csv(test_path)
 
 
 def create_data_processor():
@@ -58,7 +62,7 @@ def create_data_processor():
 	path_dict = dict()
 	path_dict['images'] = '{}/train-images-idx3-ubyte.gz'.format(DATA_PATH)
 	path_dict['labels'] = '{}/train-labels-idx1-ubyte.gz'.format(DATA_PATH)
-	dataprocessor = build_train(path_dict, DATAPROCESSORS_PATH)
+	dataprocessor = build_train(path_dict, DATAPROCESSORS_PATH, IMAGE_SHAPE)
 
 
 def create_model(hyper):
@@ -74,16 +78,9 @@ def create_model(hyper):
 	# 	from train.train_hyperparameterhunter_mlfow import LGBOptimizer
 	# LGBOpt = LGBOptimizer(dtrain, MODELS_PATH)
 	# LGBOpt.optimize(maxevals=50)
+	cnn_model = CNNModel(dtrain, MODELS_PATH, IMAGE_SHAPE, BATCH_SIZE, TRAIN_EPOCHS)
+	cnn_model.fit()
 
-	cnn_model = get_cnn_model(IMAGE_SHAPE)
-	history = cnn_model.fit(
-		X_train,
-		y_train,
-		batch_size=BATCH_SIZE,
-		epochs=75,
-		verbose=1,
-		validation_data=(X_validate,y_validate),
-	)
 
 if __name__ == '__main__':
 
@@ -92,6 +89,6 @@ if __name__ == '__main__':
 	parser.add_argument("--hyper", type=str, default="hyperopt")
 	args = parser.parse_args()
 	create_folders()
-	download_data()
+	# download_data()
 	create_data_processor()
 	create_model(args.hyper)
