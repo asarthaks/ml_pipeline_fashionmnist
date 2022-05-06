@@ -19,9 +19,8 @@ MESSAGES_PATH = PATH/'messages'
 RETRAIN_EVERY = 25
 EXTRA_MODELS_TO_KEEP = 1
 
-from initialize import IMAGE_SHAPE, IMAGE_COLS, IMAGE_ROWS
+from initialize import IMAGE_SHAPE, IMAGE_COLS, IMAGE_ROWS, CLASS_LABELS
 
-# column_order = pickle.load(open(DATAPROCESSORS_PATH/'column_order.p', 'rb'))
 dataprocessor = None
 consumer = None
 model = None
@@ -43,8 +42,7 @@ def is_application_message(msg):
 
 
 def predict(message, IMAGE_SHAPE):
-	image_data = np.array(message['data']['image'])
-	# row = pd.DataFrame(message, index=[0])
+	image_data = np.array(message['image'])
 	# sanity check
 	assert image_data.shape == (IMAGE_COLS*IMAGE_ROWS,)
 	# In the real world we would not have the target (here 'income_bracket').
@@ -52,19 +50,17 @@ def predict(message, IMAGE_SHAPE):
 	# RETRAIN_EVERY number of messages. In the real world, after RETRAIN_EVERY
 	# number of messages have been collected, one would have to wait until we
 	# can collect RETRAIN_EVERY targets AND THEN retrain
-	# row.drop('income_bracket', axis=1, inplace=True)
-	# trow = dataprocessor.transform(row)
-	trow = image_data.reshape(*IMAGE_SHAPE)
-	return model.predict(trow)[0]
+	trow = np.array([image_data.reshape(*IMAGE_SHAPE)])
+	return CLASS_LABELS[np.argmax(model.predict(trow)[0])]
 
 
 def start(model_id, messages_count, batch_id):
-	print('here')
-	consumer = KafkaConsumer(bootstrap_servers=KAFKA_HOST, auto_offset_reset='earliest', group_id=None)
+	consumer = KafkaConsumer(bootstrap_servers=KAFKA_HOST)
+	print('Consumer created, subscribing to topics : {}'.format(TOPICS))
 	consumer.subscribe(TOPICS)
-	print(consumer)
+	print('Subscribed')
+	print(consumer.assignment(), consumer.subscription())
 	for msg in consumer:
-		print(msg)
 		message = json.loads(msg.value)
 
 		if is_retraining_message(msg):

@@ -25,14 +25,6 @@ MESSAGES_PATH = PATH/'messages'
 def train(model_id, messages, hyper):
 	print("RETRAINING STARTED (model id: {})".format(model_id))
 	dtrain = build_train(TRAIN_DATA, DATAPROCESSORS_PATH, model_id, messages)
-	# if hyper == "hyperopt":
-	# 	# from train.train_hyperopt import LGBOptimizer
-	# 	from train.train_hyperopt_mlflow import LGBOptimizer
-	# elif hyper == "hyperparameterhunter":
-	# 	# from train.train_hyperparameterhunter import LGBOptimizer
-	# 	from train.train_hyperparameterhunter_mlfow import LGBOptimizer
-	# LGBOpt = LGBOptimizer(dtrain, MODELS_PATH)
-	# LGBOpt.optimize(maxevals=2, model_id=model_id)
 	cnn_model = CNNModel(dtrain, MODELS_PATH, IMAGE_SHAPE, BATCH_SIZE, TRAIN_EPOCHS)
 	cnn_model.fit()
 	print("RETRAINING COMPLETED (model id: {})".format(model_id))
